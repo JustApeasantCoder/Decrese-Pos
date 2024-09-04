@@ -1,0 +1,68 @@
+import requests
+import json
+import config
+
+API_KEY = config.API_KEY
+KEY_ID = config.KEY_ID
+CHAIN = "42161"
+
+headers = {
+    'Content-Type': 'application/json',
+    'vela-api-key': API_KEY,
+    'vela-key-id': KEY_ID
+}
+
+#Get Open Positions
+def get_open_positions():
+    url = f'https://api.vela.exchange/trade-bots/data/open_positions/{CHAIN}'
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        open_positions = response.json()
+        
+        if isinstance(open_positions, list) and len(open_positions) > 0:
+            for position in open_positions:
+                pos_id = position.get('posId', None)
+                token_id = position.get('tokenId', None)  
+                size = position.get('size', None)  
+                is_long = position.get('isLong', None)  
+                if pos_id:
+                    print(f"Found open position with ID: {pos_id}, Token ID: {token_id}, Size: {size}, Is Long: {is_long}")
+                    return pos_id, token_id, size, is_long  
+        else:
+            print("No open positions found.")
+            return None, None, None, None
+    else:
+        print(f"Failed to fetch open positions: {response.status_code}, {response.text}")
+        return None, None, None, None
+
+#Closing Position
+def close_position(pos_id, token_id, size, is_long):
+    url = f'https://api.vela.exchange/trade-bots/execute'
+    
+    #Parameters
+    close_params = {
+        "name": "decreasePosition",  
+        "chainId": CHAIN,
+        "params": {
+            "posId": pos_id,  
+            "tokenId": token_id,  
+            "size": size,  
+            "isLong": is_long  
+        }
+    }
+    
+    #Debugging
+    print("Closing position:", json.dumps(close_params, indent=4))
+    
+    response = requests.post(url, headers=headers, data=json.dumps(close_params))
+    
+    if response.status_code == 200:
+        print(f"Successfully closed position {pos_id}")
+    else:
+        print(f"Failed to close position: {response.status_code}, {response.text}")
+
+#Execution
+position_id, token_id, position_size, position_is_long = get_open_positions()
+if position_id:
+    close_position(position_id, token_id, position_size, position_is_long)
